@@ -249,8 +249,8 @@ async function main(): Promise<void> {
   await sendWebhook(WEBHOOK_URL, {
     status: "completed",
     vid: sessionId,
-    source_url: `${STATIC_URL}/${videoPath}`,
-    thumbnail_url: `${STATIC_URL}/${thumbnailPath}`,
+    source_url: `${STATIC_URL}${videoPath}`,
+    thumbnail_url: `${STATIC_URL}${thumbnailPath}`,
   });
 
   console.log("Video prepared:", videoPath);

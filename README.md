@@ -134,7 +134,7 @@ docker run --rm -it \
 
 ```bash
 curl --fail-with-body -X PATCH \
-  http://localhost:9997/v3/config/paths/patch/cort_d \
+  http://localhost:9997/v3/config/paths/patch/court_d \
   -H 'Content-Type: application/json' \
   -d '{
     "record": true,
@@ -147,7 +147,7 @@ curl --fail-with-body -X PATCH \
 
 ```bash
 curl --fail-with-body -X PATCH \
-  http://localhost:9997/v3/config/paths/patch/cort_d \
+  http://localhost:9997/v3/config/paths/patch/court_d \
   -H 'Content-Type: application/json' \
   -d '{
     "record": false
@@ -158,23 +158,29 @@ curl --fail-with-body -X PATCH \
 ## Set stream source    
 
 ```bash
-curl --fail-with-body -X PATCH http://localhost:9997/v3/config/paths/patch/cort_d \
+curl --fail-with-body -X PATCH http://localhost:9997/v3/config/paths/patch/court_d \
   -H 'Content-Type: application/json' \
   -d '{"source":"rtsp://admin:1q2w3e4r5t@host.docker.internal:8554","sourceOnDemand":true}' | jq
 ```
 
-`sourceOnDemand: true` means MediaMTX will pull the RTSP source only after a reader connects to `cort_d`.
+`sourceOnDemand: true` means MediaMTX will pull the RTSP source only after a reader connects to `court_d`.
 If you want it to connect immediately, set `"sourceOnDemand": false`.
 
 Example reader:
 
 ```bash
-ffplay -rtsp_transport tcp rtsp://localhost:8554/cort_d
+ffplay -rtsp_transport tcp rtsp://localhost:8554/court_d
 ```
 
 
 ## Check configuration status
 
 ```bash
-curl --fail-with-body http://localhost:9997/v3/config/paths/get/cort_d | jq
+curl --fail-with-body http://localhost:9997/v3/config/paths/get/court_d | jq
+```
+
+## Check stream health
+
+```bash
+curl --fail-with-body http://localhost:9997/v3/paths/get/court_d | jq
 ```
