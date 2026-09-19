@@ -27,7 +27,10 @@ go.work.sum
 # env file
 .env
 .mp4
+node_modules/
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+/media

@@ -91,12 +91,32 @@ and see [config/mediamtx.yml](./config/mediamtx.yml) for an example configuratio
 ## Start docker container
 
 ```bash
-docker build -t mediamtx-server .
+
+docker build -t mediamtx_server -f Dockerfile .
+
 
 docker run --rm -it \
-  -v ./records:/recordings \
-  -p 8554:8554 \
-  mediamtx-server
+  -v $(pwd)/config/mediamtx.yml:/mediamtx.yml:ro \
+  -v $(pwd)/media:/opt/media \
+  -v $(pwd)/scripts:/hooks:ro \
+  -p 9997:9997 \
+  mediamtx_server
+```
+
+## Start docker container with NGINX
+
+```bash
+docker build -t mediamtx_server_nginx -f DockerfileNGINX .
+
+
+docker run --rm -it \
+  -v "$(pwd)/config/mediamtx.yml:/mediamtx.yml:ro" \
+  -v "$(pwd)/media:/opt/media" \
+  -v "$(pwd)/scripts:/hooks:ro" \
+  -v "$(pwd)/config/nginx.conf:/etc/nginx/sites-enabled/default:ro" \
+  -p 80:80 \
+  -p 9997:9997 \
+  mediamtx_server_nginx
 ```
 
 -p 8554:8554 \ # rtsp
@@ -108,3 +128,53 @@ docker run --rm -it \
 -p 8189:8189/udp \ # some-udp-service
 -p 8892:8892/udp \ # some-udp-service
 -p 8893:8893/udp \ # some-udp-service
+
+
+## Start recording
+
+```bash
+curl --fail-with-body -X PATCH \
+  http://localhost:9997/v3/config/paths/patch/cort_d \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "record": true,
+    "recordFormat": "fmp4",
+    "recordPath": "/tmp/%path/session-123/%Y-%m-%d_%H-%M-%S-%f"
+  }' | jq
+```
+
+## Stop recording
+
+```bash
+curl --fail-with-body -X PATCH \
+  http://localhost:9997/v3/config/paths/patch/cort_d \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "record": false
+  }' | jq
+```
+
+
+## Set stream source    
+
+```bash
+curl --fail-with-body -X PATCH http://localhost:9997/v3/config/paths/patch/cort_d \
+  -H 'Content-Type: application/json' \
+  -d '{"source":"rtsp://admin:1q2w3e4r5t@host.docker.internal:8554","sourceOnDemand":true}' | jq
+```
+
+`sourceOnDemand: true` means MediaMTX will pull the RTSP source only after a reader connects to `cort_d`.
+If you want it to connect immediately, set `"sourceOnDemand": false`.
+
+Example reader:
+
+```bash
+ffplay -rtsp_transport tcp rtsp://localhost:8554/cort_d
+```
+
+
+## Check configuration status
+
+```bash
+curl --fail-with-body http://localhost:9997/v3/config/paths/get/cort_d | jq
+```

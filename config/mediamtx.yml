@@ -79,6 +79,7 @@ authInternalUsers:
         path:
       - action: playback
         path:
+      - action: api
 
     # Default administrator.
     # This allows to use API, metrics and PPROF without authentication,
@@ -881,17 +882,17 @@ paths:
   # example:
   # my_camera:
   #   source: rtsp://my_camera
-  my_stream:
-    record: true
-    recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  court_d:
+    source: rtsp://admin:1q2w3e4r5t@host.docker.internal:8554
+    runOnRecordSegmentComplete: node /hooks/record-complete.ts
+    # my_stream:
+    # record: true
+    # recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
     # source: rtsp://localhost:8554/mystream
     # recordFormat: fmp4
     # recordPartDuration: 1s
     # recordSegmentDuration: 1h
     # recordDeleteAfter: 1d
-  my_obs:
-    record: true
-    recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
     # source: rtsp://localhost:8554/myobs
 
   # Settings under path "all_others" are applied to all paths that

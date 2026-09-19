@@ -1,0 +1,17 @@
+FROM bluenviron/mediamtx:1 AS mediamtx
+
+FROM node:24-bookworm-slim
+
+COPY --from=mediamtx /mediamtx /
+COPY config/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh \
+    && mkdir -p /opt/media
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    nginx \
+    jq \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT [ "/docker-entrypoint.sh" ]
