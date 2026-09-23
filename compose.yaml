@@ -1,0 +1,27 @@
+services:
+  mediamtx:
+    build:
+      context: .
+      dockerfile: DockerfileNGINX
+    image: mediamtx-server-nginx:local
+    container_name: mediamtx_server
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./config/mediamtx.yml:/mediamtx.yml:ro
+      - ./config/nginx.conf:/etc/nginx/sites-enabled/default:ro
+      - ./scripts:/hooks:ro
+      - ./opt/media:/opt/media
+    ports:
+      - "80:80"
+      - "8554:8554"
+      - "9997:9997"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:9997/v3/config/global/get"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

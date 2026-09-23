@@ -887,12 +887,9 @@ paths:
   # my_camera:
   #   source: rtsp://my_camera
   court_d:
-    source: rtsp://admin:1q2w3e4r5t@host.docker.internal:8554
+    # source: rtsp://admin:1q2w3e4r5t@host.docker.internal:8554
+    source: publisher
     runOnRecordSegmentComplete: node /hooks/record-complete.ts
-    # my_stream:
-    # record: true
-    # recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
-    # source: rtsp://localhost:8554/mystream
     # recordFormat: fmp4
     # recordPartDuration: 1s
     # recordSegmentDuration: 1h

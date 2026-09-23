@@ -96,8 +96,10 @@ docker build -t mediamtx_server -f Dockerfile .
 
 
 docker run --rm -it \
+  --name mediamtx_server \
+  --env-file "$(pwd)/.env" \
   -v $(pwd)/config/mediamtx.yml:/mediamtx.yml:ro \
-  -v $(pwd)/media:/opt/media \
+  -v $(pwd)/opt/media:/opt/media \
   -v $(pwd)/scripts:/hooks:ro \
   -p 9997:9997 \
   mediamtx_server
@@ -110,13 +112,48 @@ docker build -t mediamtx_server_nginx -f DockerfileNGINX .
 
 
 docker run --rm -it \
+  --name mediamtx_server \
+  --env-file "$(pwd)/.env" \
   -v "$(pwd)/config/mediamtx.yml:/mediamtx.yml:ro" \
-  -v "$(pwd)/media:/opt/media" \
+  -v "$(pwd)/opt/media:/opt/media" \
   -v "$(pwd)/scripts:/hooks:ro" \
   -v "$(pwd)/config/nginx.conf:/etc/nginx/sites-enabled/default:ro" \
   -p 80:80 \
   -p 9997:9997 \
   mediamtx_server_nginx
+```
+
+## Start with Docker Compose
+
+Create `.env` in the project root with the variables used by the recording
+hook:
+
+```dotenv
+MODE=development
+API_URL=http://host.docker.internal:8008
+STATIC_URL=http://localhost
+JWT_SECRET=replace-with-a-secret
+MEDIA_ROOT=/opt/media
+```
+
+Build and start MediaMTX with NGINX:
+
+```bash
+docker compose up --build -d
+docker compose logs -f mediamtx
+```
+
+The service exposes:
+
+- `http://localhost` — recorded media through NGINX;
+- `rtsp://localhost:8554/<path>` — RTSP publish/read endpoint;
+- `http://localhost:9997` — MediaMTX Control API.
+
+Recordings produced by the hook are stored in `./opt/media` on the host.
+Stop the service with:
+
+```bash
+docker compose down
 ```
 
 -p 8554:8554 \ # rtsp

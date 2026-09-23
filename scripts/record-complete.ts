@@ -22,6 +22,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
 
 import {
   copyFile,
@@ -34,9 +35,7 @@ import {
 import * as path from "node:path";
 
 const MEDIA_ROOT = path.resolve(process.env.MEDIA_ROOT ?? "/opt/media");
-const WEBHOOK_URL =
-  process.env.API_URL ??
-  `${process.env.API_URL ?? "http://host.docker.internal:8008"}/clapi/hooks/video`;
+const WEBHOOK_URL =`${process.env.API_URL ?? "http://host.docker.internal:8008"}/hooks/video`;
 const STATIC_URL = process.env.STATIC_URL ?? "http://localhost";
 /**
  * Read a mandatory environment variable.
@@ -53,6 +52,31 @@ function requiredEnv(name: string): string {
   }
 
   return value;
+}
+
+/**
+ * Create a short-lived JWT signed with HMAC-SHA256 (JWT algorithm HS256).
+ *
+ * This uses only Node.js built-ins, so the hook does not need a runtime JWT
+ * dependency. The API must verify the token with the same JWT_SECRET.
+ */
+function createJwtToken(
+  secret: string,
+  claims: Record<string, unknown>,
+): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = Buffer.from(
+    JSON.stringify({ alg: "HS256", typ: "JWT" }),
+  ).toString("base64url");
+  const payload = Buffer.from(
+    JSON.stringify({ ...claims, iat: now, exp: now + 5 * 60 }),
+  ).toString("base64url");
+  const unsignedToken = `${header}.${payload}`;
+  const signature = createHmac("sha256", secret)
+    .update(unsignedToken)
+    .digest("base64url");
+
+  return `${unsignedToken}.${signature}`;
 }
 
 /**
@@ -125,11 +149,15 @@ function escapeConcatPath(filePath: string): string {
  */
 async function sendWebhook(
   url: string,
+  token: string,
   payload: Record<string, unknown>,
 ): Promise<void> {
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
     body: JSON.stringify(payload),
   });
 
@@ -144,18 +172,25 @@ async function sendWebhook(
  */
 async function main(): Promise<void> {
   // MediaMTX writes segments to a path such as:
-  // /tmp/cort_d/session-123/2026-09-17_15-45-11-376035.mp4
+  // /tmp/cort_d/cid/uid/video-id/2026-09-17_15-45-11-376035.mp4
   const segmentPath = requiredEnv("MTX_SEGMENT_PATH");
   const mediaPath = requiredEnv("MTX_PATH");
 
-  // The segment's parent directory represents the recording session. Its last
-  // component becomes the session ID ("session-123" in the example above).
+  // The recording path has this structure:
+  // /tmp/<path>/<cid>/<uid>/<video-id>/<segment>.mp4
   const segmentDirectory = path.dirname(segmentPath);
-  const sessionId = path.basename(segmentDirectory);
+  const videoId = path.basename(segmentDirectory);
+  const uid = path.basename(path.dirname(segmentDirectory));
+  const cid = path.basename(path.dirname(path.dirname(segmentDirectory)));
 
   // Final files are stored outside the temporary recording directory:
-  // /opt/media/cort_d/session-123
-  const targetDirectory = path.resolve(MEDIA_ROOT, mediaPath, sessionId);
+  // SIMPLE:
+  // /opt/media/cort_d/video-id
+  // const targetDirectory = path.resolve(MEDIA_ROOT, mediaPath, videoId);
+
+  // WITH CID AND UID:
+  // /opt/media/cid/uid/videoID
+  const targetDirectory = path.resolve(MEDIA_ROOT, cid, uid, videoId);
 
   // Prevent a malformed MediaMTX path from escaping MEDIA_ROOT with "../".
   if (!targetDirectory.startsWith(`${MEDIA_ROOT}${path.sep}`)) {
@@ -246,14 +281,25 @@ async function main(): Promise<void> {
   }
 
   // Notify the application only after video.mp4 has been successfully created.
-  await sendWebhook(WEBHOOK_URL, {
+  const token = createJwtToken(requiredEnv("JWT_SECRET"), {
+    cid: cid,
+    uid: uid,
+    vid: videoId,
+  });
+
+
+  await sendWebhook(WEBHOOK_URL, token, {
     status: "completed",
-    vid: sessionId,
     source_url: `${STATIC_URL}${videoPath}`,
     thumbnail_url: `${STATIC_URL}${thumbnailPath}`,
   });
 
-  console.log("Video prepared:", videoPath);
+  console.log("Webhook payload:", {
+    status: "completed",
+    source_url: `${STATIC_URL}${videoPath}`,
+    thumbnail_url: `${STATIC_URL}${thumbnailPath}`,
+  });
+  console.log("Token:", token);
   console.log("Webhook sent:", WEBHOOK_URL);
 }
 
@@ -264,6 +310,8 @@ main().catch((error: unknown) => {
     "record-complete failed:",
     error instanceof Error ? error.message : error,
   );
+  console.error("Stack trace:", error instanceof Error ? error.stack : undefined);
+  console.error("Environment variables:", process.env);
   process.exitCode = 1;
 });
 
